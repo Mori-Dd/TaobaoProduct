@@ -2,7 +2,6 @@ import re
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -12,9 +11,12 @@ import pymongo
 
 client = pymongo.MongoClient(MONGO_URL)
 db = client[MONGO_DB]
-driver = webdriver.Chrome()
+driver = webdriver.PhantomJS(service_args=SERVICE_ARGS)
 wait =  WebDriverWait(driver, 10)
+
+driver.set_window_size(1400,900)
 def search(keyword):
+    print('正在搜索')
     try:
         driver.get('https://www.taobao.com/')
         input = wait.until(
@@ -29,8 +31,9 @@ def search(keyword):
         get_products()
         return total.text
     except TimeoutException:
-        return search()
+        return search(keyword)
 def next_page(page_number):
+    print('正在翻页:',page_number)
     try:
         input = wait.until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "#mainsrp-pager > div > div > div > div.form > input"))
@@ -69,10 +72,14 @@ def save_to_mongo(result):
         print('存货到MONGODB错误',result)
 
 def main():
-   total = search(KEYWORD)
-   total = int(re.compile('(\d+)').search(total).group(1))
-   for i in range(2,total+1):
-       next_page(i)
-   driver.close()
+    try:
+        total = search(KEYWORD)
+        total = int(re.compile('(\d+)').search(total).group(1))
+        for i in range(2,total+1):
+           next_page(i)
+    except Exception:
+        print('出错啦！！！')
+    finally:
+        driver.close()
 if __name__ == '__main__':
     main()
